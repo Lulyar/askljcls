@@ -5,12 +5,14 @@ import "../App.css";
 
 // Biar musiknya 1x dibuat dan bisa terus muter walau pindah halaman
 let globalAudio = null;
+let hasStarted = false;
 
 function getGlobalAudio() {
   if (!globalAudio) {
     globalAudio = new Audio("/starla.mp3");
     globalAudio.loop = true; // Biar muter terus
     globalAudio.volume = 0.5; // Volume 50%
+    globalAudio.preload = "auto"; // Preload audio
   }
   return globalAudio;
 }
@@ -21,21 +23,42 @@ function Home() {
   useEffect(() => {
     const audio = getGlobalAudio();
 
-    // Play musik pas ada interaksi pertama user (ini yang paling stabil di Chrome)
+    // Function untuk play musik
     const tryPlay = () => {
-      audio.play().catch((error) => {
-        console.log("Audio play failed:", error);
-      });
+      if (hasStarted) return; // Jangan play lagi kalau udah mulai
+      
+      audio.play()
+        .then(() => {
+          hasStarted = true;
+          console.log("Musik mulai diputar!");
+        })
+        .catch((error) => {
+          console.log("Audio play failed:", error);
+        });
     };
 
-    // Event listener untuk klik/tap pertama kali
-    window.addEventListener("click", tryPlay, { once: true });
-    window.addEventListener("touchstart", tryPlay, { once: true }); // Untuk mobile
+    // Coba autoplay langsung saat halaman load
+    tryPlay();
+
+    // Fallback: kalau autoplay gagal, tunggu interaksi user
+    const handleInteraction = () => {
+      tryPlay();
+      // Hapus listener setelah musik mulai
+      window.removeEventListener("click", handleInteraction);
+      window.removeEventListener("touchstart", handleInteraction);
+      window.removeEventListener("keydown", handleInteraction);
+    };
+
+    // Event listener untuk berbagai jenis interaksi
+    window.addEventListener("click", handleInteraction);
+    window.addEventListener("touchstart", handleInteraction);
+    window.addEventListener("keydown", handleInteraction);
 
     // Cleanup: hapus listener aja, jangan stop musik biar tetap nyala di halaman lain
     return () => {
-      window.removeEventListener("click", tryPlay);
-      window.removeEventListener("touchstart", tryPlay);
+      window.removeEventListener("click", handleInteraction);
+      window.removeEventListener("touchstart", handleInteraction);
+      window.removeEventListener("keydown", handleInteraction);
     };
   }, []); 
 
